@@ -689,6 +689,8 @@ static int mdss_dsi_panel_cont_splash_on(struct mdss_panel_data *pdata)
 		pdata->panel_info.no_solid_fill)
 		mdss_dsi_sw_reset(pdata);
 
+	lcd_notifier_call_chain(LCD_EVENT_ON_START);
+
 	mmi_panel_notify(MMI_PANEL_EVENT_DISPLAY_ON, NULL);
 
 #ifndef CONFIG_FB_MSM_MDSS_MDP3
@@ -809,11 +811,11 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 
 	mfd = pdata->mfd;
 
+	pr_info("%s+: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
+
 #ifdef CONFIG_LCD_NOTIFY
 	lcd_notifier_call_chain(LCD_EVENT_ON_START);
 #endif
-
-	pr_info("%s+: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
 
 	if (!mfd->quickdraw_in_progress)
 		mmi_panel_notify(MMI_PANEL_EVENT_PRE_DISPLAY_ON, NULL);
@@ -940,13 +942,13 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 
 	mfd = pdata->mfd;
 
-#ifdef CONFIG_LCD_NOTIFY
-	lcd_notifier_call_chain(LCD_EVENT_OFF_START);
-#endif
-
 	pr_info("%s+: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
 
 	mipi  = &pdata->panel_info.mipi;
+
+#ifdef CONFIG_LCD_NOTIFY
+	lcd_notifier_call_chain(LCD_EVENT_OFF_START);
+#endif
 
 	if (!mfd->quickdraw_in_progress)
 		mmi_panel_notify(MMI_PANEL_EVENT_PRE_DISPLAY_OFF, NULL);
