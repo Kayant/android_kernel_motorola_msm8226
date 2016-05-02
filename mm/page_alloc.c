@@ -1055,7 +1055,8 @@ static void change_pageblock_range(struct page *pageblock_page,
  * as well.
  */
 static void try_to_steal_freepages(struct zone *zone, struct page *page,
-				  int start_type, int fallback_type)
+				   int start_type, int fallback_type,
+				   int start_order)
 {
 	int current_order = page_order(page);
 
@@ -1067,7 +1068,8 @@ static void try_to_steal_freepages(struct zone *zone, struct page *page,
 
 	if (current_order >= pageblock_order / 2 ||
 	    start_type == MIGRATE_RECLAIMABLE ||
-	    start_type == MIGRATE_UNMOVABLE ||
+	    // allow unmovable allocs up to 64K without migrating blocks
+	    (start_type == MIGRATE_UNMOVABLE && start_order >= 5) ||
 	    page_group_by_mobility_disabled) {
 		int pages;
 
@@ -1111,8 +1113,8 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
 
 			if (!is_migrate_cma(migratetype)) {
 				try_to_steal_freepages(zone, page,
-							start_migratetype,
-							migratetype);
+						       start_migratetype,
+						       migratetype, order);
 			} else {
 				/*
 				 * When borrowing from MIGRATE_CMA, we need to
@@ -4552,7 +4554,7 @@ static inline void setup_usemap(struct pglist_data *pgdat, struct zone *zone,
 #ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
 
 /* Initialise the number of pages represented by NR_PAGEBLOCK_BITS */
-void __init set_pageblock_order(void)
+void __paginginit set_pageblock_order(void)
 {
 	unsigned int order;
 
@@ -4580,7 +4582,7 @@ void __init set_pageblock_order(void)
  * include/linux/pageblock-flags.h for the values of pageblock_order based on
  * the kernel config
  */
-void __init set_pageblock_order(void)
+void __paginginit set_pageblock_order(void)
 {
 }
 
@@ -4603,13 +4605,13 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
 	pgdat_resize_init(pgdat);
 	pgdat->nr_zones = 0;
 	init_waitqueue_head(&pgdat->kswapd_wait);
-	init_waitqueue_head(&pgdat->pfmemalloc_wait);
 	pgdat->kswapd_max_order = 0;
 	pgdat_page_cgroup_init(pgdat);
 
 	for (j = 0; j < MAX_NR_ZONES; j++) {
 		struct zone *zone = pgdat->node_zones + j;
 		unsigned long size, realsize, memmap_pages;
+		enum lru_list lru;
 
 		size = zone_spanned_pages_in_node(nid, j, zones_size);
 		realsize = size - zone_absent_pages_in_node(nid, j,
@@ -4659,7 +4661,12 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
 		zone->zone_pgdat = pgdat;
 
 		zone_pcp_init(zone);
-		lruvec_init(&zone->lruvec, zone);
+		for_each_lru(lru)
+			INIT_LIST_HEAD(&zone->lruvec.lists[lru]);
+		zone->reclaim_stat.recent_rotated[0] = 0;
+		zone->reclaim_stat.recent_rotated[1] = 0;
+		zone->reclaim_stat.recent_scanned[0] = 0;
+		zone->reclaim_stat.recent_scanned[1] = 0;
 		zap_zone_vm_stats(zone);
 		zone->flags = 0;
 		if (!size)

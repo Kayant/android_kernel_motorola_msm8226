@@ -355,15 +355,21 @@ void rotate_reclaimable_page(struct page *page)
 static void update_page_reclaim_stat(struct zone *zone, struct page *page,
 				     int file, int rotated)
 {
-	struct zone_reclaim_stat *reclaim_stat;
+	struct zone_reclaim_stat *reclaim_stat = &zone->reclaim_stat;
+	struct zone_reclaim_stat *memcg_reclaim_stat;
 
-	reclaim_stat = mem_cgroup_get_reclaim_stat_from_page(page);
-	if (!reclaim_stat)
-		reclaim_stat = &zone->lruvec.reclaim_stat;
+	memcg_reclaim_stat = mem_cgroup_get_reclaim_stat_from_page(page);
 
 	reclaim_stat->recent_scanned[file]++;
 	if (rotated)
 		reclaim_stat->recent_rotated[file]++;
+
+	if (!memcg_reclaim_stat)
+		return;
+
+	memcg_reclaim_stat->recent_scanned[file]++;
+	if (rotated)
+		memcg_reclaim_stat->recent_rotated[file]++;
 }
 
 static void __activate_page(struct page *page, void *arg)
@@ -837,9 +843,14 @@ EXPORT_SYMBOL(pagevec_lookup_tag);
 void __init swap_setup(void)
 {
 	unsigned long megs = totalram_pages >> (20 - PAGE_SHIFT);
-
 #ifdef CONFIG_SWAP
-	bdi_init(swapper_space.backing_dev_info);
+	int i;
+
+	bdi_init(swapper_spaces[0].backing_dev_info);
+	for (i = 0; i < MAX_SWAPFILES; i++) {
+		spin_lock_init(&swapper_spaces[i].tree_lock);
+		INIT_LIST_HEAD(&swapper_spaces[i].i_mmap_nonlinear);
+	}
 #endif
 
 	/* Use a smaller cluster for small-memory machines */

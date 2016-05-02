@@ -726,6 +726,8 @@ const char * const vmstat_text[] = {
 #endif
 	"nr_anon_transparent_hugepages",
 	"nr_free_cma",
+	"nr_swapcache",
+
 	"nr_dirty_threshold",
 	"nr_dirty_background_threshold",
 
@@ -758,6 +760,7 @@ const char * const vmstat_text[] = {
 	"kswapd_inodesteal",
 	"kswapd_low_wmark_hit_quickly",
 	"kswapd_high_wmark_hit_quickly",
+	"kswapd_skip_congestion_wait",
 	"pageoutrun",
 	"allocstall",
 

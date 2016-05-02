@@ -1724,8 +1724,10 @@ static int ct406_probe(struct i2c_client *client,
 	INIT_WORK(&ct->work, ct406_work_func);
 	INIT_WORK(&ct->work_prox_start, ct406_work_prox_start);
 
+#ifdef CONFIG_TOUCHSCREEN_PREVENT_SLEEP
 	INIT_WORK(&ct_disable_work, ct_suspend);
 	INIT_WORK(&ct_enable_work, ct_resume);
+#endif
 
 	mutex_init(&ct->mutex);
 
